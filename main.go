@@ -26,32 +26,34 @@ func main() {
 		if update.Message == nil {
 			continue
 		}
-		 go func() {
-			 if update.Message.From.ID == MESSAGEID  && update.Message.Chat.UserName == CHAT_USERNAME { //777000 is the ID of Telegram's replicating service for channel to discussion group.
-			 	//REPLEACE CHAT_USERNAME above with the discussion Chat's public ID (or equivalent) to make sure it only replcates message from that group
-				 fmt.Printf("message: %s\n", update.Message.Text)
-				 successful, addError := addToDatabase(update.Message.Text)
-				 if successful {
-					 msg := tgbotapi.NewMessage(YOUR_CHAT_ID, "") //Replace YOUR_CHAT_ID to get a message if bot is successful in adding it to the DB
-					 msg.Text = "My Lord, I have added message successfully to database, I hope I am serving you well."
-					 _, _ = bot.Send(msg)
-				 } else { // Get a message is something goes south
-					 msg := tgbotapi.NewMessage(YOUR_CHAT_ID, "Something failed, sending details. If you don't get the details in a message immediately after this one, It might be something very bad.")
-					 _, _ = bot.Send(msg) // addError.Error MAY lead to nil pointer derefernce which will cause a panic, I am not sure if that will ever happen in out case.
-					 msg = tgbotapi.NewMessage(YOUR_CHAT_ID, "")
-					 msg.Text = "My Lord, I have failed in adding the message database, the error I encountered is:" + addError.Error() + "I am sorry to have disappointed you."
-					 _, _ = bot.Send(msg)
-					 // Do replace YOUR_CHAT_ID with your chat ID (or a group or anything, if you want that)
-				 }
-			 } else {
-				 if update.Message.Chat.IsPrivate() {
-					 msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text) // Just send back what they say, just for fun
-					 msg.ReplyToMessageID = update.Message.MessageID
-					 _, _ = bot.Send(msg)
-				 }
-			 }
-		 }()
+		 go handleUpdate(bot, update)
 	}
+}
+
+func handleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
+		if update.Message.From.ID == MESSAGEID  && update.Message.Chat.UserName == CHAT_USERNAME { //777000 is the ID of Telegram's replicating service for channel to discussion group.
+		 //REPLEACE CHAT_USERNAME above with the discussion Chat's public ID (or equivalent) to make sure it only replcates message from that group
+			fmt.Printf("message: %s\n", update.Message.Text)
+			successful, addError := addToDatabase(update.Message.Text)
+			if successful {
+				msg := tgbotapi.NewMessage(YOUR_CHAT_ID, "") //Replace YOUR_CHAT_ID to get a message if bot is successful in adding it to the DB
+				msg.Text = "My Lord, I have added message successfully to database, I hope I am serving you well."
+				_, _ = bot.Send(msg)
+			} else { // Get a message is something goes south
+				msg := tgbotapi.NewMessage(YOUR_CHAT_ID, "Something failed, sending details. If you don't get the details in a message immediately after this one, It might be something very bad.")
+				_, _ = bot.Send(msg) // addError.Error MAY lead to nil pointer derefernce which will cause a panic, I am not sure if that will ever happen in out case.
+				msg = tgbotapi.NewMessage(YOUR_CHAT_ID, "")
+				msg.Text = "My Lord, I have failed in adding the message database, the error I encountered is:" + addError.Error() + "I am sorry to have disappointed you."
+				_, _ = bot.Send(msg)
+				// Do replace YOUR_CHAT_ID with your chat ID (or a group or anything, if you want that)
+			}
+		} else {
+			if update.Message.Chat.IsPrivate() {
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text) // Just send back what they say, just for fun
+				msg.ReplyToMessageID = update.Message.MessageID
+				_, _ = bot.Send(msg)
+			}
+		}
 }
 
 func addToDatabase(message string) (bool, error) {
