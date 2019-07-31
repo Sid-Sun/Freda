@@ -6,9 +6,11 @@ import (
 	"github.com/go-telegram-bot-api/telegram-bot-api"
 	_ "github.com/lib/pq"
 	"log"
+	"sync"
 )
 
 func main() {
+	var wg sync.WaitGroup
 	bot, err := tgbotapi.NewBotAPI("XXXXXXXXXXXXXXXXXXXXXX")
 	if err != nil {
 		log.Panic(err)
@@ -21,12 +23,22 @@ func main() {
 	u.Timeout = 60
 
 	updates, err := bot.GetUpdatesChan(u)
+	if err != nil {
+		log.Panic(err)
+	}
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go getUpdates(bot, updates)
+	}
+	wg.Wait()
+}
 
+func getUpdates(bot *tgbotapi.BotAPI, updates tgbotapi.UpdatesChannel) {
 	for update := range updates {
 		if update.Message == nil {
 			continue
 		}
-		 go handleUpdate(bot, update)
+		go handleUpdate(bot, update)
 	}
 }
 
