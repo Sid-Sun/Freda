@@ -11,6 +11,8 @@ import (
 	"sync"
 )
 
+var ignoreNextMessage = false
+
 func main() {
 	var wg sync.WaitGroup
 	bot, err := tgbotapi.NewBotAPI(os.Getenv("FREDA_API_TOKEN_ID"))
@@ -45,9 +47,10 @@ func getUpdates(bot *tgbotapi.BotAPI, updates tgbotapi.UpdatesChannel) {
 }
 
 func handleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
-		if update.Message.From.ID == 777000  && update.Message.Chat.UserName == os.Getenv("TARGET_CHAT_USERNAME") { //777000 is the ID of Telegram's replicating service for channel to discussion group.
+	adminChatID, _ := strconv.ParseInt(os.Getenv("ADMIN_CHAT_ID"), 10, 64)
+	if update.Message.From.ID == 777000 && update.Message.Chat.UserName == os.Getenv("TARGET_CHAT_USERNAME") { //777000 is the ID of Telegram's replicating service for channel to discussion group.
+		if !ignoreNextMessage {
 			successful, addError := addToDatabase(update.Message.Text)
-			adminChatID, _ := strconv.ParseInt(os.Getenv("ADMIN_CHAT_ID"), 10, 64)
 			if successful {
 				msg := tgbotapi.NewMessage(adminChatID, "My Lord, I have added message successfully to database, I hope I am serving you well.")
 				_, _ = bot.Send(msg)
@@ -60,12 +63,21 @@ func handleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 				// Do replace YOUR_CHAT_ID with your chat ID (or a group or anything, if you want that)
 			}
 		} else {
-			if update.Message.Chat.IsPrivate() {
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text) // Just send back what they say, just for fun
-				msg.ReplyToMessageID = update.Message.MessageID
-				_, _ = bot.Send(msg)
-			}
+			ignoreNextMessage = false
 		}
+	} else {
+		if update.Message.Chat.IsPrivate() {
+			if update.Message.Chat.ID == adminChatID && update.Message.Text == "/toggleIgnore" {
+				ignoreNextMessage = !ignoreNextMessage
+				msg := tgbotapi.NewMessage(adminChatID, "Toggled ignore.")
+				_, _ = bot.Send(msg)
+				return
+			}
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text) // Just send back what they say, just for fun
+			msg.ReplyToMessageID = update.Message.MessageID
+			_, _ = bot.Send(msg)
+		}
+	}
 }
 
 func addToDatabase(message string) (bool, error) {
