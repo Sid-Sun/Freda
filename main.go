@@ -11,6 +11,12 @@ import (
 	"sync"
 )
 
+type MessageDetails struct {
+	Message          string
+	ReplyToMessageID int
+	ChatID           int64
+}
+
 var ignoreNextMessage = false
 
 func main() {
@@ -52,15 +58,22 @@ func handleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 		if !ignoreNextMessage {
 			successful, addError := addToDatabase(update.Message.Text)
 			if successful {
-				msg := tgbotapi.NewMessage(adminChatID, "My Lord, I have added message successfully to database, I hope I am serving you well.")
-				_, _ = bot.Send(msg)
+				go sendMessage(bot, MessageDetails{
+					Message:          "My Lord, I have added message successfully to database, I hope I am serving you well.",
+					ReplyToMessageID: update.Message.MessageID,
+					ChatID:           adminChatID,
+				})
 			} else { // Get a message is something goes south
-				msg := tgbotapi.NewMessage(adminChatID, "Something failed, sending details. If you don't get the details in a message immediately after this one, It might be something very bad.")
-				_, _ = bot.Send(msg) // addError.Error MAY lead to nil pointer derefernce which will cause a panic, I am not sure if that will ever happen in out case.
-				msg = tgbotapi.NewMessage(adminChatID, "")
-				msg.Text = "My Lord, I have failed in adding the message database, the error I encountered is:" + addError.Error() + "I am sorry to have disappointed you."
-				_, _ = bot.Send(msg)
-				// Do replace YOUR_CHAT_ID with your chat ID (or a group or anything, if you want that)
+				go sendMessage(bot, MessageDetails{
+					Message:          "Something failed, sending details. If you don't get the details in a message immediately after this one, It might be something very bad.",
+					ReplyToMessageID: 0,
+					ChatID:           adminChatID,
+				}) // addError.Error MAY lead to nil pointer derefernce which will cause a panic, I am not sure if that will ever happen in out case
+				go sendMessage(bot, MessageDetails{
+					Message:          "My Lord, I have failed in adding the message database, the error I encountered is:" + addError.Error() + "I am sorry to have disappointed you.",
+					ReplyToMessageID: 0,
+					ChatID:           adminChatID,
+				})
 			}
 		} else {
 			ignoreNextMessage = false
@@ -69,15 +82,28 @@ func handleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 		if update.Message.Chat.IsPrivate() {
 			if update.Message.Chat.ID == adminChatID && update.Message.Text == "/toggleIgnore" {
 				ignoreNextMessage = !ignoreNextMessage
-				msg := tgbotapi.NewMessage(adminChatID, "Toggled ignore.")
-				_, _ = bot.Send(msg)
-				return
+				go sendMessage(bot, MessageDetails{
+					Message:          "Toggled Ignore.",
+					ReplyToMessageID: 0,
+					ChatID:           adminChatID,
+				})
+			} else {
+				go sendMessage(bot, MessageDetails{
+					Message:          update.Message.Text,
+					ReplyToMessageID: update.Message.MessageID,
+					ChatID:           update.Message.Chat.ID,
+				})
 			}
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text) // Just send back what they say, just for fun
-			msg.ReplyToMessageID = update.Message.MessageID
-			_, _ = bot.Send(msg)
 		}
 	}
+}
+
+func sendMessage(bot *tgbotapi.BotAPI, details MessageDetails) {
+	msg := tgbotapi.NewMessage(details.ChatID, details.Message)
+	if details.ReplyToMessageID != 0 {
+		msg.ReplyToMessageID = details.ReplyToMessageID
+	}
+	_, _ = bot.Send(msg)
 }
 
 func addToDatabase(message string) (bool, error) {
