@@ -12,6 +12,7 @@ import (
 )
 
 type MessageDetails struct {
+	ParseMode        string
 	Message          string
 	ReplyToMessageID int
 	ChatID           int64
@@ -62,17 +63,20 @@ func handleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 					Message:          "My Lord, I have added message successfully to database, I hope I am serving you well.",
 					ReplyToMessageID: update.Message.MessageID,
 					ChatID:           adminChatID,
+					ParseMode:        "",
 				})
 			} else { // Get a message is something goes south
 				go sendMessage(bot, MessageDetails{
 					Message:          "Something failed, sending details. If you don't get the details in a message immediately after this one, It might be something very bad.",
 					ReplyToMessageID: 0,
 					ChatID:           adminChatID,
+					ParseMode:        "",
 				}) // addError.Error MAY lead to nil pointer derefernce which will cause a panic, I am not sure if that will ever happen in out case
 				go sendMessage(bot, MessageDetails{
 					Message:          "My Lord, I have failed in adding the message database, the error I encountered is:" + addError.Error() + "I am sorry to have disappointed you.",
 					ReplyToMessageID: 0,
 					ChatID:           adminChatID,
+					ParseMode:        "",
 				})
 			}
 		} else {
@@ -86,12 +90,51 @@ func handleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 					Message:          "Toggled Ignore.",
 					ReplyToMessageID: 0,
 					ChatID:           adminChatID,
+					ParseMode:        "",
 				})
 			} else {
 				go sendMessage(bot, MessageDetails{
 					Message:          update.Message.Text,
 					ReplyToMessageID: update.Message.MessageID,
 					ChatID:           update.Message.Chat.ID,
+					ParseMode:        "",
+				})
+			}
+		} else if update.Message.IsCommand() {
+			switch update.Message.Command() {
+			case "report":
+				admins, err := bot.GetChatAdministrators(tgbotapi.ChatConfig{ChatID: update.Message.Chat.ID})
+				if err != nil {
+					go sendMessage(bot, MessageDetails{
+						Message:          "My Lord, there was an error while reporting:" + err.Error() + "I am sorry to have disappointed you.",
+						ReplyToMessageID: 0,
+						ChatID:           adminChatID,
+						ParseMode:        "",
+					})
+					return
+				}
+				var reply string
+				for _, admin := range admins {
+					reply = reply + "[" + admin.User.FirstName + "](tg://user?id=" + strconv.Itoa(admin.User.ID) + ") "
+				}
+				var replyToMessage int
+				if update.Message.ReplyToMessage == nil {
+					replyToMessage = update.Message.MessageID
+				} else {
+					replyToMessage = update.Message.ReplyToMessage.MessageID
+				}
+				go sendMessage(bot, MessageDetails{
+					Message:          reply,
+					ReplyToMessageID: replyToMessage,
+					ChatID:           update.Message.Chat.ID,
+					ParseMode:        "markdown",
+				})
+			default:
+				go sendMessage(bot, MessageDetails{
+					Message:          "Sorry, I don't recognise that command.",
+					ReplyToMessageID: update.Message.MessageID,
+					ChatID:           update.Message.Chat.ID,
+					ParseMode:        "",
 				})
 			}
 		}
@@ -103,6 +146,7 @@ func sendMessage(bot *tgbotapi.BotAPI, details MessageDetails) {
 	if details.ReplyToMessageID != 0 {
 		msg.ReplyToMessageID = details.ReplyToMessageID
 	}
+	msg.ParseMode = details.ParseMode
 	_, _ = bot.Send(msg)
 }
 
