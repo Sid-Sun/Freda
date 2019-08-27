@@ -115,6 +115,9 @@ func handleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 				}
 				var reply string
 				for _, admin := range admins {
+					if admin.User.ID == 157914044 && update.Message.Chat.UserName != "cosmicosofficial" {
+						continue
+					}
 					reply = reply + "[" + admin.User.FirstName + "](tg://user?id=" + strconv.Itoa(admin.User.ID) + ") "
 				}
 				var replyToMessage int
