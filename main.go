@@ -103,7 +103,7 @@ func handleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 		} else if update.Message.IsCommand() {
 			switch update.Message.Command() {
 			case "report":
-				admins, err := bot.GetChatAdministrators(tgbotapi.ChatConfig{ChatID: update.Message.Chat.ID, SuperGroupUsername: update.Message.Chat.UserName})
+				admins, err := bot.GetChatAdministrators(tgbotapi.ChatConfig{ChatID: update.Message.Chat.ID})
 				if err != nil {
 					go sendMessage(bot, MessageDetails{
 						Message:          "My Lord, there was an error while reporting:" + err.Error() + "I am sorry to have disappointed you.",
