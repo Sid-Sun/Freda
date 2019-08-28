@@ -73,7 +73,7 @@ func handleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 					ParseMode:        "",
 				}) // addError.Error MAY lead to nil pointer derefernce which will cause a panic, I am not sure if that will ever happen in out case
 				go sendMessage(bot, MessageDetails{
-					Message:          "My Lord, I have failed in adding the message database, the error I encountered is:" + addError.Error() + "I am sorry to have disappointed you.",
+					Message:          "My Lord, I have failed in adding the message database, the error I encountered is: " + addError.Error() + " I am sorry to have disappointed you.",
 					ReplyToMessageID: 0,
 					ChatID:           adminChatID,
 					ParseMode:        "",
@@ -106,7 +106,7 @@ func handleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 				admins, err := bot.GetChatAdministrators(tgbotapi.ChatConfig{ChatID: update.Message.Chat.ID})
 				if err != nil {
 					go sendMessage(bot, MessageDetails{
-						Message:          "My Lord, there was an error while reporting:" + err.Error() + "I am sorry to have disappointed you.",
+						Message:          "My Lord, there was an error while reporting: " + err.Error() + " I am sorry to have disappointed you.",
 						ReplyToMessageID: 0,
 						ChatID:           adminChatID,
 						ParseMode:        "",
