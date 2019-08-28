@@ -103,28 +103,29 @@ func handleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 		} else if update.Message.IsCommand() {
 			switch update.Message.Command() {
 			case "report":
-				admins, err := bot.GetChatAdministrators(tgbotapi.ChatConfig{ChatID: update.Message.Chat.ID})
-				if err != nil {
-					go sendMessage(bot, MessageDetails{
-						Message:          "My Lord, there was an error while reporting: " + err.Error() + " I am sorry to have disappointed you.",
-						ReplyToMessageID: 0,
-						ChatID:           adminChatID,
-						ParseMode:        "",
-					})
-					return
-				}
-				var reply string
-				for _, admin := range admins {
-					if admin.User.ID == 157914044 && update.Message.Chat.UserName != "cosmicosofficial" {
-						continue
-					}
-					reply = reply + "[" + admin.User.FirstName + "](tg://user?id=" + strconv.Itoa(admin.User.ID) + ") "
-				}
 				var replyToMessage int
+				var reply string
 				if update.Message.ReplyToMessage == nil {
 					replyToMessage = update.Message.MessageID
+					reply = "Please reply to the message you wish to report with this command."
 				} else {
 					replyToMessage = update.Message.ReplyToMessage.MessageID
+					admins, err := bot.GetChatAdministrators(tgbotapi.ChatConfig{ChatID: update.Message.Chat.ID})
+					if err != nil {
+						go sendMessage(bot, MessageDetails{
+							Message:          "My Lord, there was an error while reporting: " + err.Error() + " I am sorry to have disappointed you.",
+							ReplyToMessageID: 0,
+							ChatID:           adminChatID,
+							ParseMode:        "",
+						})
+						return
+					}
+					for _, admin := range admins {
+						if admin.User.ID == 157914044 && update.Message.Chat.UserName != "cosmicosofficial" {
+							continue
+						}
+						reply = reply + "[" + admin.User.FirstName + "](tg://user?id=" + strconv.Itoa(admin.User.ID) + ") "
+					}
 				}
 				go sendMessage(bot, MessageDetails{
 					Message:          reply,
