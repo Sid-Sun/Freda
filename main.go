@@ -8,8 +8,14 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 )
+
+type Repeat struct {
+	NumberOfRepeats int
+	RepeatNext      bool
+}
 
 type MessageDetails struct {
 	ParseMode        string
@@ -19,6 +25,8 @@ type MessageDetails struct {
 }
 
 var ignoreNextMessage = false
+
+var Repeats = make(map[string]Repeat)
 
 func main() {
 	var wg sync.WaitGroup
@@ -84,7 +92,8 @@ func handleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 		}
 	} else {
 		if update.Message.Chat.IsPrivate() {
-			if update.Message.Chat.ID == adminChatID && update.Message.Text == "/toggleIgnore" {
+			messageSlice := strings.Fields(update.Message.Text)
+			if update.Message.Chat.ID == adminChatID && len(messageSlice) == 1 && messageSlice[0] == "/toggleIgnore" {
 				ignoreNextMessage = !ignoreNextMessage
 				go sendMessage(bot, MessageDetails{
 					Message:          "Toggled Ignore.",
@@ -92,13 +101,41 @@ func handleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 					ChatID:           adminChatID,
 					ParseMode:        "",
 				})
+			} else if len(messageSlice) == 2 && messageSlice[0] == "/repeat" {
+				var tempRepeat Repeat
+				var err error
+				tempRepeat.NumberOfRepeats, err = strconv.Atoi(messageSlice[1])
+				tempRepeat.RepeatNext = true
+				if err != nil {
+					go sendMessage(bot, MessageDetails{
+						Message:          "Oopsie Whoopsie, could not parse your numbersie",
+						ReplyToMessageID: update.Message.MessageID,
+						ChatID:           update.Message.Chat.ID,
+						ParseMode:        "",
+					})
+				}
+				ChatID := strconv.FormatInt(update.Message.Chat.ID, 10)
+				Repeats[ChatID] = tempRepeat
 			} else {
-				go sendMessage(bot, MessageDetails{
-					Message:          update.Message.Text,
-					ReplyToMessageID: update.Message.MessageID,
-					ChatID:           update.Message.Chat.ID,
-					ParseMode:        "",
-				})
+				numberOfRepeats := 1
+				replyToMessageID := update.Message.MessageID
+				ChatID := strconv.FormatInt(update.Message.Chat.ID, 10)
+				if Repeats[ChatID].RepeatNext {
+					numberOfRepeats = Repeats[ChatID].NumberOfRepeats
+					replyToMessageID = 0
+					var tempRepeat Repeat
+					tempRepeat.RepeatNext = false
+					tempRepeat.NumberOfRepeats = 1
+					Repeats[ChatID] = tempRepeat
+				}
+				for i := 0; i < numberOfRepeats; i++ {
+					go sendMessage(bot, MessageDetails{
+						Message:          update.Message.Text,
+						ReplyToMessageID: replyToMessageID,
+						ChatID:           update.Message.Chat.ID,
+						ParseMode:        "",
+					})
+				}
 			}
 		} else if update.Message.IsCommand() {
 			switch update.Message.Command() {
@@ -129,13 +166,6 @@ func handleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 					ReplyToMessageID: replyToMessage,
 					ChatID:           update.Message.Chat.ID,
 					ParseMode:        "markdown",
-				})
-			default:
-				go sendMessage(bot, MessageDetails{
-					Message:          "Sorry, I don't recognise that command.",
-					ReplyToMessageID: update.Message.MessageID,
-					ChatID:           update.Message.Chat.ID,
-					ParseMode:        "",
 				})
 			}
 		}
